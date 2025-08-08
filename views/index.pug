@@ -1,0 +1,12 @@
+extends layout
+
+block content
+  h2 Movie App
+
+  p Browse and share your favorite movies.
+
+  each movie in movies
+    .movie-card
+      h3= movie.name
+      p= movie.description
+      a(href=`/movies/${movie._id}`) View Details

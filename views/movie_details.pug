@@ -1,0 +1,14 @@
+extends layout
+
+block content
+  h2= movie.name
+  p Description: #{movie.description}
+  p Year: #{movie.year}
+  p Genres: #{movie.genres.join(', ')}
+  p Rating: #{movie.rating}
+  p Posted By: #{movie.postedBy.username}
+
+  if currentUser == movie.postedBy._id.toString()
+    a(href=`/movies/${movie._id}/edit`) Edit
+    form(method="POST", action=`/movies/${movie._id}/delete`)
+      button(type="submit") Delete
