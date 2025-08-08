@@ -1,57 +1,75 @@
 const express = require('express');
-const router = express.Router();
+const bcrypt = require('bcrypt');
 const User = require('../models/User');
 
-// Register Page
+const router = express.Router();
+
+// Register (GET)
 router.get('/register', (req, res) => {
   res.render('register');
 });
 
-// Handle Register
+// Register (POST)
 router.post('/register', async (req, res) => {
-  const { username, email, password } = req.body;
-
   try {
-    const existingUser = await User.findOne({ $or: [{ username }, { email }] });
-    if (existingUser) {
+    const { username, email, password } = req.body;
+
+    if (!username || !email || !password) {
+      return res.render('register', { error: 'All fields are required.' });
+    }
+
+    // ensure unique username OR email
+    const exists = await User.findOne({ $or: [{ username }, { email }] });
+    if (exists) {
       return res.render('register', { error: 'Username or email already exists.' });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-    const user = new User({ username, email, password: hashedPassword });
-    await user.save();
+    const hash = await bcrypt.hash(password, 10);
+    const user = await User.create({ username, email, password: hash });
 
     req.session.userId = user._id;
     res.redirect('/');
   } catch (err) {
-    console.error(err);
-    res.render('register', { error: 'Registration failed. Check your inputs.' });
+    console.error('Register error:', err);
+    res.render('register', { error: 'Registration failed. Try again.' });
   }
 });
 
-
-// Login Page
+// Login (GET)
 router.get('/login', (req, res) => {
   res.render('login');
 });
 
-// Handle Login
+// Login (POST)
 router.post('/login', async (req, res) => {
-  const { username, password } = req.body;
-  const user = await User.findOne({ username });
-  if (user && await user.comparePassword(password)) {
+  try {
+    const { username, password } = req.body;
+
+    if (!username || !password) {
+      return res.render('login', { error: 'All fields are required.' });
+    }
+
+    const user = await User.findOne({ username });
+    if (!user) {
+      return res.render('login', { error: 'Invalid username or password' });
+    }
+
+    const ok = await bcrypt.compare(password, user.password);
+    if (!ok) {
+      return res.render('login', { error: 'Invalid username or password' });
+    }
+
     req.session.userId = user._id;
     res.redirect('/');
-  } else {
-    res.render('login', { error: 'Invalid username or password' });
+  } catch (err) {
+    console.error('Login error:', err);
+    res.render('login', { error: 'Login failed. Try again.' });
   }
 });
 
-// Handle Logout
-router.post('/logout', (req, res) => {
-  req.session.destroy(() => {
-    res.redirect('/');
-  });
+// Logout (GET is fine; match your form/link)
+router.get('/logout', (req, res) => {
+  req.session.destroy(() => res.redirect('/login'));
 });
 
 module.exports = router;
